@@ -118,6 +118,7 @@ genExpr =
       traverse (genType >=> \ τ -> instruct (LLVM.Alloca τ Nothing 0 [])) tm >>= \ m ->
       ML.local cgTerms (Map.union m) (genExpr x);
     g (S.Then x y) = genExpr x >> genExpr y;
+    g (S.Loop p x y) = voidOperand <$ genLoop (genExpr p) (genExpr x) (genExpr y);
   }
   in \ x -> genConstExpr x >>= \ m_c ->
   case m_c of {

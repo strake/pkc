@@ -18,6 +18,7 @@ Terminal	= LParenth as '(' | RParenth as ')'
 		| SemiColon as ';' | Comma as ','
 
 		| KeyWord "with"	as "with"
+		| KeyWord "for"		as "for"
 
 		| KeyWord "@"		as "@"
 		| KeyWord "*"		as "*"
@@ -156,6 +157,7 @@ expr7		{ Expr [Char] };
 expr7		{ x }							: expr6 { x };
 expr7		{ With (Map.fromList ds) x }				: KeyWord "with", '(', sepMayEndBy localDecl ',' { ds }, ')', expr7 { x };
 expr7		{ y := x }						: expr6 { y }, "≔", expr7 { x };
+expr7		{ Loop p x y }						: "for", expr1 { p }, expr1 { x }, expr { y };
 
 localDecl	{ ([Char], Type [Char]) };
 localDecl	{ (v, t) }						: termName { v }, ":", type { t };

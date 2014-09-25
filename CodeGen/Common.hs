@@ -67,6 +67,17 @@ genIf m_p m_x m_y =
     t -> instruct (LLVM.Phi t [(x, xBlkName), (y, yBlkName)] []);
   };
 
+-- see Data.Syntax for explanation
+genLoop :: (MonadCodeGen s b m) => m Operand -> m Operand -> m Operand -> m ();
+genLoop m_p m_x m_y =
+  liftA4 (,,,) fresh fresh fresh fresh >>= \ (pBlkName, xBlkName, yBlkName, outName) ->
+  terminate (LLVM.Br pBlkName []) >>
+  ML.askWriteSTRef cgThisBlockNameRef pBlkName >> m_p >>= genCond >>= \ p ->
+  terminate (LLVM.CondBr p outName yBlkName []) >>
+  ML.askWriteSTRef cgThisBlockNameRef xBlkName >> m_x >> terminate (LLVM.Br pBlkName []) >>
+  ML.askWriteSTRef cgThisBlockNameRef yBlkName >> m_y >> terminate (LLVM.Br xBlkName []) >>
+  ML.askWriteSTRef cgThisBlockNameRef outName;
+
 genCond :: (MonadCodeGen s b m) => Operand -> m Operand;
 genCond x = case operandType x of {
   LLVM.PointerType t _ -> instruct $ LLVM.ICmp LLVMIP.EQ x (ConstantOperand $ LLVMC.Null t)  [];
