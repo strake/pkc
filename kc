@@ -1,0 +1,4 @@
+#!/bin/rc
+ifs='
+' x=`{ echo $1 | sed 's/\.k$//' }
+./kc1 <$x.k | llc | sed -r 's/"([[:alnum:]_]+)"/\1/g' | as -o $x.o && cc -o $x $x.o $*(2-)
