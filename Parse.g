@@ -19,6 +19,7 @@ Terminal	= LParenth as '(' | RParenth as ')'
 
 		| KeyWord "with"	as "with"
 		| KeyWord "for"		as "for"
+		| KeyWord "return"	as "return"
 
 		| KeyWord "@"		as "@"
 		| KeyWord "*"		as "*"
@@ -108,9 +109,16 @@ expr1		{ Expr [Char] };
 expr1		{ x }							: expr0 { x };
 expr1		{ Member x (Right v) }					: expr1 { x }, ".", termName { v };
 
+expr2a		{ Expr [Char] };
+expr2a		{ x }							: expr1 { x };
+expr2a		{ Call f x }						: expr2a { f }, expr1 { x };
+
+expr2b		{ Expr [Char] };
+expr2b		{ Return m_x }						: "return", opt expr1 { m_x };
+
 expr2		{ Expr [Char] };
-expr2		{ x }							: expr1 { x };
-expr2		{ Call f x }						: expr2 { f }, expr1 { x };
+expr2		{ x }							: expr2a { x };
+expr2		{ x }							: expr2b { x };
 
 expr3		{ Expr [Char] };
 expr3		{ x }							: expr2 { x };

@@ -119,6 +119,9 @@ genExpr =
       ML.local cgTerms (Map.union m) (genExpr x);
     g (S.Then x y) = genExpr x >> genExpr y;
     g (S.Loop p x y) = voidOperand <$ genLoop (genExpr p) (genExpr x) (genExpr y);
+    g (S.Return m_x) =
+      traverse genExpr m_x >>= \ m_χ ->
+      voidOperand <$ (terminate (LLVM.Ret m_χ []) >> ML.askWriteSTRefM cgThisBlockNameRef fresh);
   }
   in \ x -> genConstExpr x >>= \ m_c ->
   case m_c of {

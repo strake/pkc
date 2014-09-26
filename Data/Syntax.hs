@@ -30,6 +30,7 @@ data Expr b
   | With (Map b (Type b)) (Expr b)
   | Then (Expr b) (Expr b)
   | Loop (Expr b) (Expr b) (Expr b) -- Loop p x y in C = for (; p; x) y;
+  | Return (Maybe (Expr b))
   ;
 
 data Literal
