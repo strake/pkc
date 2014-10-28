@@ -44,6 +44,7 @@ data Type b
   | TupleType [Type b]
   | FuncType (Type b) (Type b)
   | IntegralType Signedness Width
+  | TypeInteger Integer
   | StructType [(Maybe b, Type b)]
   |  UnionType [(Maybe b, Type b)]
   | TypeType

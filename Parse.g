@@ -174,6 +174,7 @@ atype		{ Type [Char] };
 atype		{ NamedType v }						: TypeName { v };
 atype		{ PtrType t }						: atype { t }, "*";
 atype		{ stlist id TupleType ts }				: '(', sepBy type ',' { ts }, ')';
+atype		{ TypeInteger n }					: "<integer>" { n };
 
 type		{ Type [Char] };
 type		{ t }							: atype { t }; 
