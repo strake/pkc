@@ -27,16 +27,9 @@ main =
      _cgTerms = Map.empty,
      _cgTypes =
        Map.fromList
-       [("Int", IntegralType True (L.get mxnpWordBits mxnProp)),
-        ("Int8", IntegralType True 8),
-        ("Int16", IntegralType True 16),
-        ("Int32", IntegralType True 32),
-        ("Int64", IntegralType True 64),
-        ("Nat", IntegralType False (L.get mxnpWordBits mxnProp)),
-        ("Nat8", IntegralType False 8),
-        ("Nat16", IntegralType False 16),
-        ("Nat32", IntegralType False 32),
-        ("Nat64", IntegralType False 64)],
+       [("Int", IntegralType True),
+        ("Nat", IntegralType False),
+        ("Word", TypeInteger (fromIntegral $ L.get mxnpWordBits mxnProp))],
      _cgName = id,
      _cgCountRef = countRef
    }) ∘ execWriterT ∘ genDecls >>= print ∘ stack ∘ fmap ppr ∘ _cgDefns;

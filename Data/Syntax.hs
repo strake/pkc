@@ -43,10 +43,11 @@ data Type b
   | PtrType (Type b)
   | TupleType [Type b]
   | FuncType (Type b) (Type b)
-  | IntegralType Signedness Width
+  | IntegralType Signedness -- :: Natural → *
   | TypeInteger Integer
   | StructType [(Maybe b, Type b)]
   |  UnionType [(Maybe b, Type b)]
+  | Typlication (Type b) (Type b)
   | TypeType
   ;
 

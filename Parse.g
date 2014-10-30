@@ -172,13 +172,20 @@ localDecl	{ (v, t) }						: termName { v }, ":", type { t };
 
 atype		{ Type [Char] };
 atype		{ NamedType v }						: TypeName { v };
-atype		{ PtrType t }						: atype { t }, "*";
 atype		{ stlist id TupleType ts }				: '(', sepBy type ',' { ts }, ')';
 atype		{ TypeInteger n }					: "<integer>" { n };
 
+ptype		{ Type [Char] };
+ptype		{ t }							: atype { t };
+ptype		{ Typlication s t }					: ptype { s }, atype { t };
+
+qtype		{ Type [Char] };
+qtype		{ t }							: ptype { t };
+qtype		{ PtrType t }						: qtype { t }, "*";
+
 type		{ Type [Char] };
-type		{ t }							: atype { t }; 
-type		{ FuncType t s }					: type { t }, Symbol "->", atype { s };
+type		{ t }							: qtype { t };
+type		{ FuncType t s }					: type { t }, Symbol "->", qtype { s };
 
 termName	{ [Char] };
 termName	{ v }							: TermName { v };

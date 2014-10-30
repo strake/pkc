@@ -112,7 +112,7 @@ genExpr =
     g (S.Disj x y) = genExpr x >>= \ χ -> genIf (return χ) (return χ) (genExpr y);
     g (S.If p x y) = genIf (genExpr p) (genExpr x) (genExpr y);
     g (S.PrimOp op xs) = traverse genExpr xs >>= genPrimOp op;
-    g (S.Cast t x) = join $ liftA2 (genCast (case t of { IntegralType True _ -> True; _ -> False; })) (genType t) (genExpr x);
+    g (S.Cast t x) = join $ liftA2 (genCast (case t of { IntegralType True -> True; _ -> False; })) (genType t) (genExpr x);
     g (y S.:= x) = voidOperand <$ (genExpr x >>= genAssign y);
     g (S.With tm x) =
       traverse (genType >=> \ τ -> instruct (LLVM.Alloca τ Nothing 0 [])) tm >>= \ m ->
@@ -143,5 +143,13 @@ genType (S.PtrType t) = ptrType <$> genType t;
 genType (S.TupleType []) = return LLVM.VoidType;
 genType (S.TupleType ts) = LLVM.StructureType False <$> traverse genType ts;
 genType (S.FuncType x y) = liftA3 LLVM.FunctionType (genType y) (filter (≠ LLVM.VoidType) <$> traverse genType [x]) (pure False);
-genType (S.IntegralType _ w) = return (LLVM.IntegerType (fromIntegral w));
-genType (S.NamedType v) = ML.asks cgName >>= \ name -> fromMaybe (error ("not in scope: " ++ name v)) ∘ Map.lookup v <$> ML.asks cgTypes >>= genType;
+genType (S.Typlication (S.NamedType v) (S.TypeInteger w)) =
+  lookupType v >>= \ case {
+    IntegralType _ -> return (LLVM.IntegerType (fromIntegral w));
+    _ -> error "bad typlication";
+  };
+genType (S.IntegralType _) = LLVM.IntegerType ∘ fromIntegral <$> ML.asks (cgMxnProp ∘ mxnpWordBits);
+genType (S.NamedType v) = lookupType v >>= genType;
+
+lookupType :: (MonadCodeGen s b m) => b -> m (S.Type b);
+lookupType v = Map.lookup v <$> ML.asks cgTypes >>= maybe (ML.asks cgName >>= \ name -> fail ("not in scope: " ++ name v)) return;
