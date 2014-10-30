@@ -67,7 +67,10 @@ genDecls =
         (ML.localM cgCountRef (pure $ newSTRef 0) &
          ML.localM (tripleLens cgInsRef cgBlkRef cgThisBlockNameRef) (pure $ liftA3 (,,) (newSTRef []) (newSTRef []) (newSTRef (Name "_.entry"))))
         (traverse (return *=* genType) parm >>=
-         foldrM (\ (v, τ) m -> (\ π -> Map.insert v π m) <$> instruct (Alloca τ Nothing 0 [])) Map.empty >>= \ m ->
+         foldrM (\ case {
+                   (Just v, τ) -> \ m -> (\ π -> Map.insert v π m) <$> instruct (Alloca τ Nothing 0 []);
+                   _ -> return;
+                 }) Map.empty >>= \ m ->
          ML.local cgTerms (Map.union m) $
          maybe (return ()) (\ σ -> genAssign (parmExpr parm) (LocalReference σ (Name "_.arg"))) m_σ >>
          genExpr x >>= \ χ -> terminate (Ret (Just χ) []) >> ML.asks cgBlkRef >>= readSTRef))

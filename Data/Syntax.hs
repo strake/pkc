@@ -8,7 +8,7 @@ import Data.PrimOp;
 
 data Decl b
   = VarDecl b
-  | FuncDecl b (LTree [] (b, Type b))
+  | FuncDecl b (LTree [] (Maybe b, Type b))
   ;
 
 data Expr b
@@ -59,10 +59,11 @@ declName :: Decl b -> b;
 declName (VarDecl v) = v;
 declName (FuncDecl v _) = v;
 
-parmType :: LTree [] (b, Type b) -> Type b;
+parmType :: LTree [] (a, Type b) -> Type b;
 parmType (Leaf (_, t)) = t;
 parmType (Stem parms)  = TupleType (parmType <$> parms);
 
-parmExpr :: LTree [] (b, Type b) -> Expr b;
-parmExpr (Leaf (v, _)) = Var v;
-parmExpr (Stem parms)  = Tuple (parmExpr <$> parms);
+parmExpr :: LTree [] (Maybe b, a) -> Expr b;
+parmExpr (Leaf (Just v, _))  = Var v;
+parmExpr (Leaf (Nothing, _)) = error "\"_\" in parm";
+parmExpr (Stem parms)        = Tuple (parmExpr <$> parms);

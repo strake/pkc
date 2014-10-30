@@ -32,7 +32,7 @@ reComment = () <$ (sym '-' *> some (sym '-') *> (string "\n" <|> psym (/= '-') *
 reKeyWord :: RE Char Token;
 reKeyWord = KeyWord <$>
   (foldr1 (<|>) ∘ fmap string)
-  ["with", "for", "return", "@", "*", ".", ":", "≔"];
+  ["_", "with", "for", "return", "@", "*", ".", ":", "≔"];
 
 reTermName :: RE Char Token;
 reTermName = TermName <$> liftA2 (:) (psym (isLower <||> (== '_'))) (many (psym (isAlphaNum <||> (== '_'))));

@@ -17,6 +17,8 @@ Terminal	= LParenth as '(' | RParenth as ')'
 		| LBrace   as '{' | RBrace   as '}'
 		| SemiColon as ';' | Comma as ','
 
+		| KeyWord "_"		as "_"
+
 		| KeyWord "with"	as "with"
 		| KeyWord "for"		as "for"
 		| KeyWord "return"	as "return"
@@ -106,9 +108,10 @@ topDecl		{ (VarDecl v, L.External, True,  t, Just x) }		: termName { v }, ":", t
 topDecl		{ (FuncDecl v parm, L.External, False, t, Nothing) }	: termName { v }, parm { parm }, ":", type { t };
 topDecl		{ (FuncDecl v parm, L.External, False, t, Just x) }	: termName { v }, parm { parm }, ":", type { t }, "≔", expr { x };
 
-parm		{ LTree [] ([Char], Type [Char]) };
+parm		{ LTree [] (Maybe [Char], Type [Char]) };
 parm		{ stlist id Stem parm }					: '(', sepBy parm ',' { parm }, ')';
-parm		{ Leaf (v, t) }						: termName { v }, ":", type { t };
+parm		{ Leaf (Just v, t) }					: termName { v }, ":", type { t };
+parm		{ Leaf (Nothing, t) }					: "_", ":", type { t };
 
 expr		{ Expr [Char] };
 expr		{ x }							: expr7 { x };
