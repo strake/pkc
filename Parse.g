@@ -59,6 +59,20 @@ Terminal	= LParenth as '(' | RParenth as ')'
 		| Symbol "¬"
 
 		| Symbol "?" | Symbol "!"
+
+		| Symbol "∧="
+		| Symbol "∨="
+		| Symbol "⊻="
+		| Symbol "⊼="
+		| Symbol "⊽="
+		| Symbol "+="
+		| Symbol "-="
+		| Symbol "×="
+		| Symbol "/="
+		| Symbol "<<="
+		| Symbol ">>="
+		| Symbol "<<<="
+		| Symbol ">>>="
 		;
 
 left  2 Symbol "?!";
@@ -164,7 +178,29 @@ expr6		{ Cast t x }						: expr6 { x }, ":", type { t };
 expr7		{ Expr [Char] };
 expr7		{ x }							: expr6 { x };
 expr7		{ With (Map.fromList ds) x }				: KeyWord "with", '(', sepMayEndBy localDecl ',' { ds }, ')', expr7 { x };
-expr7		{ y := x }						: expr6 { y }, "≔", expr7 { x };
+expr7		{ y := let {
+		         lookupBinOp :: [Char] -> Expr [Char] -> Expr [Char] -> Expr [Char];
+		         lookupBinOp "" x y = y;
+		         lookupBinOp "∧" x y = PrimOp PrimAnd [x, y];
+		         lookupBinOp "∨" x y = PrimOp PrimOr  [x, y];
+		         lookupBinOp "⊻" x y = PrimOp PrimXor [x, y];
+		         lookupBinOp "⊼" x y =
+		           PrimOp PrimXor
+		           [PrimOp PrimAnd [x, y],
+		            Literal (LInteger (negate 1))];
+		         lookupBinOp "⊽" x y =
+		           PrimOp PrimXor
+		           [PrimOp PrimOr  [x, y],
+		            Literal (LInteger (negate 1))];
+		         lookupBinOp "<<" x y = PrimOp PrimShiftL [x, y];
+		         lookupBinOp ">>" x y = PrimOp PrimShiftR [x, y];
+		         lookupBinOp "<<<" x y = PrimOp PrimRotL [x, y];
+		         lookupBinOp ">>>" x y = PrimOp PrimRotR [x, y];
+		         lookupBinOp "+" x y = PrimOp PrimAdd [x, y];
+		         lookupBinOp "-" x y = PrimOp PrimSub [x, y];
+		         lookupBinOp "×" x y = PrimOp PrimMul [x, y];
+		         lookupBinOp "/" x y = PrimOp PrimDiv [x, y];
+		       } in lookupBinOp opv y x }			: expr6 { y }, assignOp { opv }, expr7 { x };
 expr7		{ Loop p x y }						: "for", expr1 { p }, expr1 { x }, expr { y };
 
 localDecl	{ ([Char], Type [Char]) };
@@ -186,6 +222,22 @@ qtype		{ PtrType t }						: qtype { t }, "*";
 type		{ Type [Char] };
 type		{ t }							: qtype { t };
 type		{ FuncType t s }					: type { t }, Symbol "->", qtype { s };
+
+assignOp	{ [Char] };
+assignOp	{ "" }							: "≔";
+assignOp	{ "∧" }							: Symbol "∧=";
+assignOp	{ "∨" }							: Symbol "∨=";
+assignOp	{ "⊻" }							: Symbol "⊻=";
+assignOp	{ "⊼" }							: Symbol "⊼=";
+assignOp	{ "⊽" }							: Symbol "⊽=";
+assignOp	{ "+" }							: Symbol "+=";
+assignOp	{ "-" }							: Symbol "-=";
+assignOp	{ "×" }							: Symbol "×=";
+assignOp	{ "/" }							: Symbol "/=";
+assignOp	{ "<<" }						: Symbol "<<=";
+assignOp	{ ">>" }						: Symbol ">>=";
+assignOp	{ "<<<" }						: Symbol "<<<=";
+assignOp	{ ">>>" }						: Symbol ">>>=";
 
 termName	{ [Char] };
 termName	{ v }							: TermName { v };
