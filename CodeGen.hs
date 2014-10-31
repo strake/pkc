@@ -96,15 +96,15 @@ genDeclType (FuncDecl _ s) = genType >=> \ τ -> (\ σ -> LLVM.FunctionType τ [
 genConstExpr :: (MonadCodeGen s b m) => S.Expr b -> m (Maybe LLVMC.Constant);
 genConstExpr (S.Literal l) = return ∘ Just $ genLiteral l;
 genConstExpr (S.Tuple xs) = (fmap ∘ fmap) (LLVMC.Struct Nothing False) $ ((fmap ∘ fmap) sequenceA ∘ traverse) genConstExpr xs;
-genConstExpr (S.Ptr (Var v)) = (\ case { ConstantOperand c -> Just c; _ -> Nothing; }) <$> lookupSymbol v;
+genConstExpr (S.Ptr (Var v)) = (\ case { ConstantOperand c -> Just c; _ -> Nothing; }) <$> askLookupNameCGM cgTerms v;
 genConstExpr _ = return Nothing;
 
 genExpr :: (MonadCodeGen s b m) => S.Expr b -> m Operand;
 genExpr =
   let {
     g :: (MonadCodeGen s b m) => S.Expr b -> m Operand;
-    g (S.Var v) = lookupSymbol v >>= load;
-    g (S.Ptr (Var v)) = lookupSymbol v;
+    g (S.Var v) = askLookupNameCGM cgTerms v >>= load;
+    g (S.Ptr (Var v)) = askLookupNameCGM cgTerms v;
     g (S.Follow x) = genExpr x >>= load;
     g (S.Call f x) = join $ liftA2 call (genExpr (S.Ptr f)) (pure <$> genExpr x);
     g (S.Tuple xs) = traverse genExpr xs >>= \ χs ->
@@ -133,7 +133,7 @@ genExpr =
   };
 
 genAssign :: (MonadCodeGen s b m) => S.Expr b -> Operand -> m ();
-genAssign (S.Var v) χ = lookupSymbol v >>= flip store χ;
+genAssign (S.Var v) χ = askLookupNameCGM cgTerms v >>= flip store χ;
 genAssign (S.Tuple xs) χ = fold <$> zipWithA (\ ii x -> instruct (LLVM.ExtractValue χ [ii] []) >>= genAssign x) [0..] xs;
 genAssign (S.Follow x) χ = genExpr x >>= flip store χ;
 
@@ -147,12 +147,9 @@ genType (S.TupleType []) = return LLVM.VoidType;
 genType (S.TupleType ts) = LLVM.StructureType False <$> traverse genType ts;
 genType (S.FuncType x y) = liftA3 LLVM.FunctionType (genType y) (filter (≠ LLVM.VoidType) <$> traverse genType [x]) (pure False);
 genType (S.Typlication (S.NamedType v) (S.TypeInteger w)) =
-  lookupType v >>= \ case {
+  askLookupNameCGM cgTypes v >>= \ case {
     IntegralType _ -> return (LLVM.IntegerType (fromIntegral w));
     _ -> error "bad typlication";
   };
 genType (S.IntegralType _) = LLVM.IntegerType ∘ fromIntegral <$> ML.asks (cgMxnProp ∘ mxnpWordBits);
-genType (S.NamedType v) = lookupType v >>= genType;
-
-lookupType :: (MonadCodeGen s b m) => b -> m (S.Type b);
-lookupType v = Map.lookup v <$> ML.asks cgTypes >>= maybe (ML.asks cgName >>= \ name -> fail ("not in scope: " ++ name v)) return;
+genType (S.NamedType v) = askLookupNameCGM cgTypes v >>= genType;

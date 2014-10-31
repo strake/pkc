@@ -195,5 +195,5 @@ ptrType = flip PointerType (AddrSpace 0);
 
 
 
-lookupSymbol :: (MonadCodeGen s b m) => b -> m Ptr;
-lookupSymbol v = Map.lookup v <$> ML.asks cgTerms >>= maybe (ML.asks cgName >>= \ name -> fail ("not in scope: " ++ name v)) return;
+askLookupNameCGM :: (MonadCodeGen s b m) => Lens (CgR s b) r (Map b a) c -> b -> m a;
+askLookupNameCGM l v = Map.lookup v <$> ML.asks l >>= maybe (ML.asks cgName >>= \ name -> fail ("not in scope: " ++ name v)) return;
