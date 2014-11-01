@@ -124,7 +124,11 @@ expr0		{ Literal (LInteger n) }				: IntegerLiteral { n };
 
 expr1		{ Expr [Char] };
 expr1		{ x }							: expr0 { x };
-expr1		{ Member x (Right v) }					: expr1 { x }, ".", termName { v };
+expr1		{ Member x sel }					: expr1 { x }, ".", selector { sel };
+
+selector	{ Either (LTree [] Int) (LTree [] [Char]) };
+selector	{ Left  kt }						: deepNest "<integer>" '(' ',' ')' { fmap fromIntegral -> kt };
+selector	{ Right vt }						: deepNest termName '(' ',' ')' { vt };
 
 expr2a		{ Expr [Char] };
 expr2a		{ x }							: expr1 { x };
@@ -252,6 +256,17 @@ sepEndBy x s { [] }		:;
 sepMayEndBy x s { [a] } <- x { a }, s;
 sepMayEndBy x s { [] }		:;
                 { xs ++ [x] }	| sepEndBy x s { xs }, x { x }, opt s; 
+
+deepNest x r s t { LTree [] a } <- x { a }, r, s, t;
+deepNest x r s t { Leaf x }		: x { x };
+                 { stlist id Stem ts }	| r, deepNests x r s t { ts }, t;
+--                 frown fails on this
+--                 { stlist id Stem ts }	| r, sepBy (deepNest x r s t) s { ts }, t;
+
+deepNests x r s t { [LTree [] a] } <- x { a }, r, s, t;
+deepNests x r s t { [] }	:;
+                  { [t] }       | deepNest x r s t { t };
+                  { ts ++ [t] }	| deepNests x r s t { ts }, s, deepNest x r s t { t };
 
 }%
 

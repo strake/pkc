@@ -16,7 +16,7 @@ data Expr b
   | Ptr (Expr b)
   | Follow (Expr b)
   | Call (Expr b) (Expr b)
-  | Member (Expr b) (Either Int b)
+  | Member (Expr b) (Either (LTree [] Int) (LTree [] b))
   | Tuple [Expr b]
   | Struct (Map b (Expr b))
   | Union (b, Expr b)

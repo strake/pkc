@@ -111,6 +111,15 @@ genExpr =
       foldrM (\ (ii, χ) α -> instruct (LLVM.InsertValue α χ [ii] []))
       (ConstantOperand (Undef $ StructureType False (operandType <$> χs)))
       (zip [0..] χs);
+    g (S.Member x (Left (fmap (+ negate 1) -> kt))) = genExpr x >>= \ χ ->
+      let {
+        go (Leaf k) = instruct (LLVM.ExtractValue χ [fromIntegral k] []);
+        go (Stem ts) =
+          foldrM
+          (\ (ii, kt) α -> go kt >>= \ υ -> instruct (LLVM.InsertValue α υ [ii] []))
+          (ConstantOperand (Undef $ let { LLVM.StructureType _ τs = operandType χ; } in ltree id (StructureType False) $ (τs !!) <$> kt))
+          (zip [0..] ts);
+      } in go kt;
     g (S.Conj x y) = genExpr x >>= \ χ -> genIf (return χ) (genExpr y) (return χ);
     g (S.Disj x y) = genExpr x >>= \ χ -> genIf (return χ) (return χ) (genExpr y);
     g (S.If p x y) = genIf (genExpr p) (genExpr x) (genExpr y);
