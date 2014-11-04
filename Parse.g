@@ -119,8 +119,12 @@ expr		{ x }							: expr7 { x };
 expr0		{ Expr [Char] };
 expr0		{ stlist id Tuple xs }					: '(', sepBy expr ',' { xs }, ')';
 expr0		{ foldr Then (fromMaybe (Tuple []) m_x) (x:xs) }	: '(', expr { x }, ';', sepEndBy expr ';' { xs }, opt expr { m_x }, ')';
+expr0		{ Struct (Map.fromList ms) }				: '{', sepMayEndBy termMember ',' { ms }, '}';
 expr0		{ Var v }						: termName { v };
 expr0		{ Literal (LInteger n) }				: IntegerLiteral { n };
+
+termMember	{ ([Char], Expr [Char]) };
+termMember	{ (v, x) }						: ".", termName { v }, "≔", expr { x };
 
 expr1		{ Expr [Char] };
 expr1		{ x }							: expr0 { x };
@@ -216,6 +220,7 @@ localDecl	{ (v, t) }						: termName { v }, ":", type { t };
 atype		{ Type [Char] };
 atype		{ NamedType v }						: TypeName { v };
 atype		{ stlist id TupleType ts }				: '(', sepBy type ',' { ts }, ')';
+atype		{ StructType ms }					: '{', sepMayEndBy typeMember ',' { ms }, '}';
 atype		{ TypeInteger n }					: "<integer>" { n };
 
 ptype		{ Type [Char] };
@@ -229,6 +234,10 @@ qtype		{ PtrType t }						: qtype { t }, "*";
 type		{ Type [Char] };
 type		{ t }							: qtype { t };
 type		{ FuncType t s }					: type { t }, Symbol "->", qtype { s };
+
+typeMember	{ (Maybe [Char], Type [Char]) };
+typeMember	{ (Just v,  t) }					: termName { v }, ":", type { t };
+typeMember	{ (Nothing, t) }					: "_", ":", type { t };
 
 assignOp	{ [Char] };
 assignOp	{ "" }							: "≔";

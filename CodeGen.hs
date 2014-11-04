@@ -47,6 +47,7 @@ import Util.Lens;
 import Util.Lens.Monadic as ML;
 import Util.LLVM.Type;
 import CodeGen.Common;
+import Destruct;
 
 genDecls :: (MonadCodeGen s b m) => [(S.Decl b, Linkage, Mutability, S.Type b, Maybe (S.Expr b))] -> m [LLVM.Definition];
 genDecls =
@@ -83,15 +84,33 @@ genDecls =
       ;
     pruneUnits t = Just t;
   } in \ ds ->
-  foldrM (\ (decl,_,_,t,_) m ->
-          liftA2 (\ τ name -> Map.insert (declName decl) (τ, name) m)
-          (genDeclType decl t) (Name ∘ ($ declName decl) <$> ML.asks cgName)) Map.empty ds >>= \ m ->
-  (fmap snd ∘ M.listens _cgDefns ∘ ML.local cgTerms (Map.union $ uncurry GlobalReference & ConstantOperand <$> m))
-  (traverse (fmap LLVM.GlobalDefinition ∘ genDecl') ds >>= ML.tells cgDefns);
+  let {
+    m = foldr (\ (decl,_,_,t,_) -> Map.insert (declName decl) (declType decl t)) Map.empty ds;
+  } in
+  fmap snd ∘ M.listens _cgDefns ∘
+  ML.localM cgTerms (ap
+                     (Map.union <$>
+                      Map.traverseWithKey
+                      (\ v t ->
+                       ConstantOperand <$>
+                       liftA2 GlobalReference (genType t) (Name ∘ ($ v) <$> ML.asks cgName))
+                     m) ∘ return) $
+  traverse
+  ((\ (decl,link,mut,t,m_x) ->
+    ML.asks (doubleLens cgName cgTypes) >>= \ (name, tm) ->
+    (,,,,) decl link mut t <$>
+    runReaderT
+    (traverse
+     (destruct (\ v -> fail ("not in scope: " ++ name v)) fstL sndL t)
+     m_x) (case decl of {
+             VarDecl _ -> id;
+             FuncDecl _ parm -> (foldr (:) [] & mapMaybe (id *=* Just) & Map.fromList & Map.union) parm
+           } $ m, tm)) >=>
+   fmap LLVM.GlobalDefinition ∘ genDecl') ds >>= ML.tells cgDefns;
 
-genDeclType :: (MonadCodeGen s b m) => S.Decl b -> S.Type b -> m LLVM.Type;
-genDeclType (VarDecl _) = genType;
-genDeclType (FuncDecl _ s) = genType >=> \ τ -> (\ σ -> LLVM.FunctionType τ [σ] False) <$> genType (parmType s);
+declType :: S.Decl b -> S.Type b -> S.Type b;
+declType (VarDecl _) = id;
+declType (FuncDecl _ s) = FuncType (parmType s);
 
 genConstExpr :: (MonadCodeGen s b m) => S.Expr b -> m (Maybe LLVMC.Constant);
 genConstExpr (S.Literal l) = return ∘ Just $ genLiteral l;
@@ -162,3 +181,4 @@ genType (S.Typlication (S.NamedType v) (S.TypeInteger w)) =
   };
 genType (S.IntegralType _) = LLVM.IntegerType ∘ fromIntegral <$> ML.asks (cgMxnProp ∘ mxnpWordBits);
 genType (S.NamedType v) = askLookupNameCGM cgTypes v >>= genType;
+genType (S.StructType ms) = genType (S.TupleType (snd <$> ms)); -- code already destructed
