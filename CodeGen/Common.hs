@@ -42,6 +42,7 @@ import LLVM.General.AST.IntegerPredicate as LLVMIP;
 import LLVM.General.AST.Linkage as LLVML;
 import LLVM.General.AST.Visibility as LLVMV;
 import Util;
+import Util.Lens;
 import Util.Lens.Monadic as ML;
 import Util.LLVM.Type;
 
@@ -56,16 +57,10 @@ genIf m_p m_x m_y =
   m_p >>= genCond >>= \ p ->
   liftA3 (,,) fresh fresh fresh >>= \ (xBlkName, yBlkName, outName) ->
   terminate (LLVM.CondBr p yBlkName xBlkName []) >>
-  ML.askWriteSTRef cgThisBlockNameRef xBlkName >> m_x <* terminate (LLVM.Br outName []) >>= \ x ->
-  ML.asks cgThisBlockNameRef >>= readSTRef >>= \ xBlkName ->
-  ML.askWriteSTRef cgThisBlockNameRef yBlkName >> m_y <* terminate (LLVM.Br outName []) >>= \ y ->
-  ML.asks cgThisBlockNameRef >>= readSTRef >>= \ yBlkName ->
-  ML.askWriteSTRef cgThisBlockNameRef outName >>
-  case operandType x of {
-    LLVM.VoidType -> return voidOperand;
-    StructureType _ [] -> return voidOperand;
-    t -> instruct (LLVM.Phi t [(x, xBlkName), (y, yBlkName)] []);
-  };
+  traverse (flip (liftM2 (,)) (terminate (LLVM.Br outName [])))
+  [ML.askWriteSTRef cgThisBlockNameRef xBlkName >> m_x,
+   ML.askWriteSTRef cgThisBlockNameRef yBlkName >> m_y] >>=
+  (ML.askWriteSTRef cgThisBlockNameRef outName >>) ∘ phi;
 
 -- see Data.Syntax for explanation
 genLoop :: (MonadCodeGen s b m) => m Operand -> m Operand -> m Operand -> m ();
@@ -79,10 +74,13 @@ genLoop m_p m_x m_y =
   ML.askWriteSTRef cgThisBlockNameRef outName;
 
 genCond :: (MonadCodeGen s b m) => Operand -> m Operand;
-genCond x = case operandType x of {
-  LLVM.PointerType t _ -> instruct $ LLVM.ICmp LLVMIP.EQ x (ConstantOperand $ LLVMC.Null t)  [];
-  LLVM.IntegerType w   -> instruct $ LLVM.ICmp LLVMIP.EQ x (ConstantOperand $ LLVMC.Int w 0) [];
-};
+genCond x = instruct $
+  LLVM.ICmp LLVMIP.EQ x
+  (ConstantOperand $
+   case operandType x of {
+     LLVM.PointerType t _ -> LLVMC.Null t;
+     LLVM.IntegerType w   -> LLVMC.Int w 0;
+   }) [];
 
 genPrimOp :: (MonadCodeGen s b m) => PrimOp -> [Operand] -> m Operand;
 genPrimOp PrimMul [x, y] = instruct $ LLVM.Mul False False x y [];
@@ -152,7 +150,7 @@ instruct ins
 
 terminate :: (MonadCodeGen s b m) => Terminator -> m Name;
 terminate trm =
-  liftA2 (,) (ML.asks cgThisBlockNameRef >>= readSTRef) (ML.asks cgInsRef >>= readSTRef) >>= \ (blkName, inss) ->
+  ML.asks (doubleLens cgThisBlockNameRef cgInsRef) >>= readSTRef *=* readSTRef >>= \ (blkName, inss) ->
   ML.askModifySTRef cgInsRef (pure []) >>
   blkName <$ ML.askModifySTRef cgBlkRef (++ [BasicBlock blkName inss (LLVM.Do trm)]);
 
@@ -166,16 +164,26 @@ store :: (MonadCodeGen s b m) => Ptr -> Operand -> m ();
 store ptr x = void ∘ instruct $ LLVM.Store False ptr x Nothing 0 []; -- waste a name, but ought to not matter
 
 call :: (MonadCodeGen s b m) => Operand -> [Operand] -> m Operand;
-call f xs = instruct $ LLVM.Call False LLVM.C [] (Right f)
-            (filter (\ (x, _) ->
-                     case operandType x of {
-                       VoidType -> False;
-                       StructureType _ [] -> False;
-                       _ -> True;
-                     }) (flip (,) [] <$> xs)) [] [];
+call f xs = instruct $
+  LLVM.Call False LLVM.C [] (Right f)
+  (filter (\ (x, _) ->
+           case operandType x of {
+             VoidType           -> False;
+             StructureType _ [] -> False;
+             _ -> True;
+           }) (flip (,) [] <$> xs)) [] [];
 
 bitCast :: (MonadCodeGen s b m) => LLVM.Type -> Operand -> m Operand;
 bitCast t x = instruct $ LLVM.BitCast x t [];
+
+phi :: (MonadCodeGen s b m) => [(Operand, Name)] -> m Operand;
+phi [] = return voidOperand;
+phi bs@((x,_):_) =
+  case operandType x of {
+    VoidType           -> return voidOperand;
+    StructureType _ [] -> return voidOperand;
+    t -> instruct (LLVM.Phi t bs []);
+  };
 
 size :: (MonadCodeGen s b m) => Type -> m Operand;
 size t = join $
