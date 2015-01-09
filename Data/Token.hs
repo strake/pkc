@@ -1,6 +1,7 @@
 module Data.Token where
 
-data Token = TermName [Char]
+data Token = EOF
+           | TermName [Char]
            | TypeName [Char]
            | Symbol [Char]
            | KeyWord [Char]

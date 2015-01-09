@@ -1,18 +1,39 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Lex where
 
 import Control.Applicative;
 import Control.Arrow;
 import Control.Category.Unicode;
+import Control.Monad;
+import Control.Monad.Except;
+import Control.Monad.State;
+import Control.Monad.State.Lens as ML;
 import Data.Char;
+import Data.Lens.TH;
 import Data.Token;
 import Data.Eq.Unicode;
 import Data.Foldable.Unicode;
+import Data.Text.Pos;
 import Text.Regex.Applicative;
 import Util;
 
-scan :: [Char] -> [Token];
-scan [] = [];
-scan xs = maybe (error "scan failure") (id *** scan >>> uncurry (:)) $ findLongestPrefix (reSpace *> reLexeme <* reSpace) xs;
+data LexerState = LexSt {
+  _lexInput :: [Char],
+  _lexPos :: TextPos
+};
+
+mkLens (dropWhile (== '_')) ''LexerState;
+
+scan1M :: (Applicative m, MonadError e m, MonadState LexerState m) => e -> m Token;
+scan1M e =
+  ML.gets lexInput >>= \ case {
+    [] -> return EOF;
+    xs -> case findLongestPrefix (withMatched $ reSpace *> reLexeme <* reSpace) xs of {
+      Nothing -> throwError e;
+      Just ((t, ys), xs) -> t <$ (ML.puts lexInput xs *> ML.modify lexPos (flip (foldr textMov) ys));
+    };
+  };
 
 reLexeme :: RE Char Token;
 reLexeme =
@@ -67,3 +88,9 @@ reNumeral n | n <=  0 = empty
             ;
 
 (−) = (-);
+
+textMov :: Char -> TextPos -> TextPos;
+textMov '\r' (TextPos (m, _)) = TextPos (m,   0);
+textMov '\n' (TextPos (m, _)) = TextPos (m+1, 0);
+textMov '\b' (TextPos (m, n)) = TextPos (m, n-1);
+textMov   _  (TextPos (m, n)) = TextPos (m, n+1);

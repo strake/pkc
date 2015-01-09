@@ -1,7 +1,11 @@
 module Parse where
 
 import Control.Applicative;
+import Control.Monad.Except;
+import Control.Monad.State;
+import Control.Monad.State.Lens as ML;
 import Data.LTree;
+import Data.List as List;
 import Data.Map (Map);
 import qualified Data.Map as Map;
 import Data.Maybe;
@@ -9,10 +13,12 @@ import Data.PrimOp;
 import Data.Syntax;
 import Data.Token;
 import Data.Linkage as L;
+import Lex;
 
 %{
 
-Terminal	= LParenth as '(' | RParenth as ')'
+Terminal	= *EOF
+		| LParenth as '(' | RParenth as ')'
 		| LBracket as '[' | RBracket as ']'
 		| LBrace   as '{' | RBrace   as '}'
 		| SemiColon as ';' | Comma as ','
@@ -279,7 +285,9 @@ deepNests x r s t { [] }	:;
 
 }%
 
-frown ts = error ("parse failure: " ++ show ts);
+frownScan = Lex.scan1M "scan failure";
+
+frown t = ML.gets lexPos >>= \ pos -> throwError ("parse failure at " ++ show pos ++ ": got " ++ show t);
 
 stlist :: (a -> b) -> ([a] -> b) -> [a] -> b;
 stlist f g [x] = f x;
