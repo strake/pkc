@@ -8,4 +8,4 @@ data PrimOp = PrimNeg
             | PrimShiftL | PrimRotL
             | PrimShiftR | PrimRotR
             | PrimAdd | PrimSub | PrimMul | PrimDiv | PrimRem
-            ;
+  deriving (Eq);
