@@ -8,8 +8,9 @@ import Data.Lens.TH;
 import Data.Map;
 import Data.Monoid;
 import Data.STRef;
-import Data.Word;
 import Data.Syntax as S;
+import Data.Tag;
+import Data.Word;
 import LLVM.General.AST as LLVM;
 
 type Ptr = Operand;
@@ -22,13 +23,15 @@ data MxnProp = MxnProp {
  - cgInsRef, cgBlkRef, cgThisBlockNameRef not needed at top level, without any function;
  - factorize out into own structure
  -}
-data CgR s b = CgR {
+data CgR s a b = CgR {
   _cgMxnProp :: MxnProp,
   _cgName    :: b -> [Char],
-  _cgTypes   :: Map b (S.Type b),
+  _cgTypes   :: Map b (TagT (S.Type a) () b),
   _cgTerms   :: Map b Ptr,
   _cgInsRef  :: STRef s [Named Instruction],
   _cgBlkRef  :: STRef s [BasicBlock],
+  _cgRetType :: TagT (S.Type a) () b,
+  _cgTermTypes :: Map b (TagT (S.Type a) () b),
   _cgThisBlockNameRef :: STRef s Name,
   _cgCountRef :: STRef s Word
 };

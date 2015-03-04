@@ -18,7 +18,7 @@ import Util;
 -- convert from structs with named members to tuples
 -- involves tedious traversal of AST, alas
 destruct :: ∀ α β b c m .
-            (Ord b, Applicative m, MonadReader α m) => (∀ a . b -> m a) -> Lens α α (Map b (Type b)) (Map b (Type b)) -> Lens α β (Map b (Type b)) c -> Type b -> Expr b -> m (Expr b);
+            (Ord b, Applicative m, MonadReader α m) => (∀ a . b -> m a) -> Lens α α (Map b (TagT Type γ b)) (Map b (TagT Type γ b)) -> Lens α β (Map b (TagT Type γ b)) c -> TagT Type γ b -> TagT Expr γ b -> m (TagT Expr γ b);
 destruct fail =
   let {
     lu :: ∀ β c . (Applicative m, MonadReader α m, Ord b) => Lens α β (Map b (Type b)) c -> b -> m (Type b);
