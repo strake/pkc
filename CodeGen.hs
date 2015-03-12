@@ -120,6 +120,12 @@ genExpr l (TagT n x) = genConstExpr l (TagT n x) >>= \ case {
       foldrM (\ (ii, χ) α -> instruct (LLVM.InsertValue α χ [ii] []))
       (ConstantOperand (Undef $ StructureType False τs))
       (zip [0..] χs);
+    S.Struct mm ->
+      case unTagT (L.get l n) of {
+        S.StructType ms ->
+          genExpr l $ TagT n $
+          Tuple (fst & (>>= flip Map.lookup mm) & fromMaybe (TagT undefined (Literal (LInteger 0))) <$> ms);
+      };
     S.Member x (Left (fmap (+ negate 1) -> kt)) -> genExpr l x >>= \ χ ->
       let {
         go (Leaf k) = instruct (LLVM.ExtractValue χ [fromIntegral k] []);
@@ -129,6 +135,12 @@ genExpr l (TagT n x) = genConstExpr l (TagT n x) >>= \ case {
           (ConstantOperand (Undef $ let { LLVM.StructureType _ τs = operandType χ; } in ltree id (StructureType False) $ (τs !!) <$> kt))
           (zip [0..] ts);
       } in go kt;
+    S.Member x (Right vt) ->
+      case unTagT (L.get l (tag x)) of {
+        S.StructType ms ->
+          genExpr l $ TagT n $
+          S.Member x (Left ((\ v -> (+1) ∘ fromMaybe (error "no such member") $ List.findIndex (== Just v) (fst <$> ms)) <$> vt));
+      };
     S.Conj x y -> genExpr l x >>= \ χ -> genIf (return χ) (genExpr l y) (return χ);
     S.Disj x y -> genExpr l x >>= \ χ -> genIf (return χ) (return χ) (genExpr l y);
     S.If p x y -> genIf (genExpr l p) (genExpr l x) (genExpr l y);
