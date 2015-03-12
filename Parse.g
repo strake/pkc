@@ -254,7 +254,7 @@ termName	{ [Char] };
 termName	{ v }							: TermName { v };
 
 loc	{ TextPos };
-loc	{% ML.gets lexPos }	:;
+loc	{% ML.gets lexPosOld }	:;
 
 sepEndBy x s { [a] } <- x { a }, s;
 sepEndBy x s { [] }		:;

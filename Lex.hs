@@ -20,7 +20,7 @@ import Util;
 
 data LexerState = LexSt {
   _lexInput :: [Char],
-  _lexPos :: TextPos
+  _lexPos, _lexPosOld :: TextPos
 };
 
 mkLens (dropWhile (== '_')) ''LexerState;
@@ -31,7 +31,9 @@ scan1M e =
     [] -> return EOF;
     xs -> case findLongestPrefix (withMatched $ reSpace *> reLexeme <* reSpace) xs of {
       Nothing -> throwError e;
-      Just ((t, ys), xs) -> t <$ (ML.puts lexInput xs *> ML.modify lexPos (flip (foldr textMov) ys));
+      Just ((t, ys), xs) -> t <$ (ML.puts lexInput xs >>
+                                  ML.gets lexPos >>= ML.puts lexPosOld >>
+                                  ML.modify lexPos (flip (foldr textMov) ys));
     };
   };
 
